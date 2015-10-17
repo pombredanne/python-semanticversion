@@ -1,8 +1,3 @@
-.. python-semanticversion documentation master file, created by
-   sphinx-quickstart on Wed May 16 10:41:34 2012.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 python-semanticversion
 ======================
 
@@ -12,7 +7,7 @@ It follows strictly the 2.0.0 version of the SemVer scheme.
 .. image:: https://secure.travis-ci.org/rbarrois/python-semanticversion.png?branch=master
     :target: http://travis-ci.org/rbarrois/python-semanticversion/
 
-semantic_version supports Python 2.6, 2.7, 3.2, 3.3, and is distributed under the two-clause BSD licence.
+semantic_version supports Python 2.6, 2.7, 3.2, 3.3, 3.4; and is distributed under the two-clause BSD licence.
 
 Links
 -----
@@ -27,7 +22,7 @@ Links
 Getting started
 ===============
 
-Intall the package from `PyPI`_, using pip:
+Install the package from `PyPI`_, using pip:
 
 .. code-block:: sh
 
@@ -112,6 +107,22 @@ Obviously, :class:`Versions <Version>` can be compared:
     >>> semantic_version.Version('0.1.1') <= semantic_version.Version('0.1.1-alpha')
     False
 
+You can also get a new version that represents a bump in one of the version levels:
+
+.. code-block:: pycon
+
+    >>> v = semantic_version.Version('0.1.1-pre+build')
+    >>> new_v = v.next_major()
+    >>> str(new_v)
+    '1.0.0'
+    >>> v = semantic_version.Version('1.1.1-pre+build')
+    >>> new_v = v.next_minor()
+    >>> str(new_v)
+    '1.2.0'
+    >>> v = semantic_version.Version('1.1.1-pre+build')
+    >>> new_v = v.next_patch()
+    >>> str(new_v)
+    '1.1.2'
 
 It is also possible to check whether a given string is a proper semantic version string:
 
@@ -236,19 +247,18 @@ definition or (for the empty pre-release number) if a single dash is appended
     False
 
 
-Including build identifiers in specifications
-"""""""""""""""""""""""""""""""""""""""""""""
+Including build metadata in specifications
+""""""""""""""""""""""""""""""""""""""""""
 
-The same rule applies for the build identifier: comparisons will include it only
-if it was included in the :class:`Spec` definition, or - for the unnumbered build
-version - if a single + is appended to the definition(``1.0.0+``, ``1.0.0-alpha+``):
+Build metadata has no ordering; thus, the only meaningful comparison including
+build metadata is equality.
 
 
 .. code-block:: pycon
 
-    >>> Version('1.0.0+build2') in Spec('<=1.0.0')   # Build identifier ignored
+    >>> Version('1.0.0+build2') in Spec('<=1.0.0')   # Build metadata ignored
     True
-    >>> Version('1.0.0+build2') in Spec('<=1.0.0+')  # Include build in checks
+    >>> Version('1.0.0+build2') in Spec('==1.0.0+build2')  # Include build in checks
     False
 
 
@@ -259,17 +269,6 @@ The :mod:`semantic_version.django_fields` module provides django fields to
 store :class:`Version` or :class:`Spec` objects.
 
 More documentation is available in the :doc:`django` section.
-
-
-Contents
-========
-
-.. toctree::
-   :maxdepth: 2
-
-   reference
-   django
-   changelog
 
 
 Contributing
@@ -289,6 +288,24 @@ When submitting patches or pull requests, you should respect the following rules
 - The test coverage for a new feature must be 100%
 - New features and methods should be documented in the :doc:`reference` section
   and included in the :doc:`changelog`
+- Include your name in the :ref:`contributors` section
+
+.. note:: All files should contain the following header::
+
+          # -*- encoding: utf-8 -*-
+          # Copyright (c) 2012-2014 The python-semanticversion project
+
+
+Contents
+========
+
+.. toctree::
+   :maxdepth: 2
+
+   reference
+   django
+   changelog
+   credits
 
 
 .. _SemVer: http://semver.org/

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2012-2013 Raphaël Barrois
+# Copyright (c) 2012-2014 The python-semanticversion project
 # This code is distributed under the two-clause BSD License.
 
 from __future__ import unicode_literals
@@ -68,8 +68,8 @@ def identifier_list_cmp(a, b):
 
 class Version(object):
 
-    version_re = re.compile('^(\d+)\.(\d+)\.(\d+)(?:-([0-9a-zA-Z.-]+))?(?:\+([0-9a-zA-Z.-]+))?$')
-    partial_version_re = re.compile('^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:-([0-9a-zA-Z.-]*))?(?:\+([0-9a-zA-Z.-]*))?$')
+    version_re = re.compile(r'^(\d+)\.(\d+)\.(\d+)(?:-([0-9a-zA-Z.-]+))?(?:\+([0-9a-zA-Z.-]+))?$')
+    partial_version_re = re.compile(r'^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:-([0-9a-zA-Z.-]*))?(?:\+([0-9a-zA-Z.-]*))?$')
 
     def __init__(self, version_string, partial=False):
         major, minor, patch, prerelease, build = self.parse(version_string, partial)
@@ -87,6 +87,17 @@ class Version(object):
         if value is None and allow_none:
             return value
         return int(value)
+
+    def next_major(self):
+        return Version('.'.join(str(x) for x in [self.major + 1, 0, 0]))
+
+    def next_minor(self):
+        return Version(
+            '.'.join(str(x) for x in [self.major, self.minor + 1, 0]))
+
+    def next_patch(self):
+        return Version(
+            '.'.join(str(x) for x in [self.major, self.minor, self.patch + 1]))
 
     @classmethod
     def coerce(cls, version_string, partial=False):
@@ -279,20 +290,14 @@ class Version(object):
                 return 0
 
         def build_cmp(a, b):
-            """Compare build components.
+            """Compare build metadata.
 
-            Special rule: a version without build component has lower
-            precedence than one with a build component.
+            Special rule: there is no ordering on build metadata.
             """
-            if a and b:
-                return identifier_list_cmp(a, b)
-            elif a:
-                # Versions with build field have higher precedence
-                return 1
-            elif b:
-                return -1
-            else:
+            if a == b:
                 return 0
+            else:
+                return NotImplemented
 
         def make_optional(orig_cmp_fun):
             """Convert a cmp-like function to consider 'None == *'."""
@@ -321,10 +326,7 @@ class Version(object):
                 build_cmp,
             ]
 
-    def __cmp__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
+    def __compare(self, other):
         field_pairs = zip(self, other)
         comparison_functions = self._comparison_functions(partial=self.partial or other.partial)
         comparisons = zip(comparison_functions, self, other)
@@ -336,64 +338,60 @@ class Version(object):
 
         return 0
 
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.__cmp__(other) == 0
-
     def __hash__(self):
         return hash((self.major, self.minor, self.patch, self.prerelease, self.build))
 
-    def __ne__(self, other):
+    def __cmp__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.__compare(other)
+
+    def __compare_helper(self, other, condition, notimpl_target):
+        """Helper for comparison.
+
+        Allows the caller to provide:
+        - The condition
+        - The return value if the comparison is meaningless (ie versions with
+            build metadata).
+        """
         if not isinstance(other, self.__class__):
             return NotImplemented
 
-        return self.__cmp__(other) != 0
+        cmp_res = self.__cmp__(other)
+        if cmp_res is NotImplemented:
+            return notimpl_target
+
+        return condition(cmp_res)
+
+    def __eq__(self, other):
+        return self.__compare_helper(other, lambda x: x == 0, notimpl_target=False)
+
+    def __ne__(self, other):
+        return self.__compare_helper(other, lambda x: x != 0, notimpl_target=True)
 
     def __lt__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.__cmp__(other) < 0
+        return self.__compare_helper(other, lambda x: x < 0, notimpl_target=False)
 
     def __le__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.__cmp__(other) <= 0
+        return self.__compare_helper(other, lambda x: x <= 0, notimpl_target=False)
 
     def __gt__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.__cmp__(other) > 0
+        return self.__compare_helper(other, lambda x: x > 0, notimpl_target=False)
 
     def __ge__(self, other):
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-
-        return self.__cmp__(other) >= 0
+        return self.__compare_helper(other, lambda x: x >= 0, notimpl_target=False)
 
 
 class SpecItem(object):
     """A requirement specification."""
 
+    KIND_ANY = '*'
     KIND_LT = '<'
     KIND_LTE = '<='
     KIND_EQUAL = '=='
     KIND_GTE = '>='
     KIND_GT = '>'
     KIND_NEQ = '!='
-
-    STRICT_KINDS = (
-        KIND_LT,
-        KIND_LTE,
-        KIND_EQUAL,
-        KIND_GTE,
-        KIND_GT,
-        KIND_NEQ,
-    )
 
     re_spec = re.compile(r'^(<|<=|==|>=|>|!=)(\d.*)$')
 
@@ -407,16 +405,26 @@ class SpecItem(object):
         if not requirement_string:
             raise ValueError("Invalid empty requirement specification: %r" % requirement_string)
 
+        # Special case: the 'any' version spec.
+        if requirement_string == '*':
+            return (cls.KIND_ANY, '')
+
         match = cls.re_spec.match(requirement_string)
         if not match:
             raise ValueError("Invalid requirement specification: %r" % requirement_string)
 
         kind, version = match.groups()
         spec = Version(version, partial=True)
+        if spec.build is not None and kind not in (cls.KIND_EQUAL, cls.KIND_NEQ):
+            raise ValueError(
+                    "Invalid requirement specification %r: build numbers have no ordering."
+                    % requirement_string)
         return (kind, spec)
 
     def match(self, version):
-        if self.kind == self.KIND_LT:
+        if self.kind == self.KIND_ANY:
+            return True
+        elif self.kind == self.KIND_LT:
             return version < self.spec
         elif self.kind == self.KIND_LTE:
             return version <= self.spec
