@@ -7,13 +7,27 @@ It follows strictly the 2.0.0 version of the SemVer scheme.
 .. image:: https://secure.travis-ci.org/rbarrois/python-semanticversion.png?branch=master
     :target: http://travis-ci.org/rbarrois/python-semanticversion/
 
-semantic_version supports Python 2.6, 2.7, 3.2, 3.3, 3.4; and is distributed under the two-clause BSD licence.
+.. image:: https://img.shields.io/pypi/v/semantic_version.svg
+    :target: https://python-semanticversion.readthedocs.io/en/latest/changelog.html
+    :alt: Latest Version
+
+.. image:: https://img.shields.io/pypi/pyversions/semantic_version.svg
+    :target: https://pypi.python.org/pypi/semantic_version/
+    :alt: Supported Python versions
+
+.. image:: https://img.shields.io/pypi/wheel/semantic_version.svg
+    :target: https://pypi.python.org/pypi/semantic_version/
+    :alt: Wheel status
+
+.. image:: https://img.shields.io/pypi/l/semantic_version.svg
+    :target: https://pypi.python.org/pypi/semantic_version/
+    :alt: License
 
 Links
 -----
 
 - Package on `PyPI`_: http://pypi.python.org/pypi/semantic_version/
-- Doc on `ReadTheDocs <http://readthedocs.org/>`_: http://readthedocs.org/docs/python-semanticversion/
+- Doc on `ReadTheDocs <http://readthedocs.org/>`_: https://python-semanticversion.readthedocs.io/
 - Source on `GitHub <http://github.com/>`_: http://github.com/rbarrois/python-semanticversion/
 - Build on `Travis CI <http://travis-ci.org/>`_: http://travis-ci.org/rbarrois/python-semanticversion/
 - Semantic Version specification: `SemVer`_
@@ -293,7 +307,7 @@ When submitting patches or pull requests, you should respect the following rules
 .. note:: All files should contain the following header::
 
           # -*- encoding: utf-8 -*-
-          # Copyright (c) 2012-2014 The python-semanticversion project
+          # Copyright (c) The python-semanticversion project
 
 
 Contents

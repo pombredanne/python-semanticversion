@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2012-2014 The python-semanticversion project
+# Copyright (c) The python-semanticversion project
 # This code is distributed under the two-clause BSD License.
 
 from __future__ import unicode_literals
@@ -10,11 +10,13 @@ import re
 
 from .compat import base_cmp
 
+
 def _to_int(value):
     try:
         return int(value), True
     except ValueError:
         return value, False
+
 
 def _has_leading_zero(value):
     return (value
@@ -89,15 +91,24 @@ class Version(object):
         return int(value)
 
     def next_major(self):
-        return Version('.'.join(str(x) for x in [self.major + 1, 0, 0]))
+        if self.prerelease and self.minor is 0 and self.patch is 0:
+            return Version('.'.join(str(x) for x in [self.major, self.minor, self.patch]))
+        else:
+            return Version('.'.join(str(x) for x in [self.major + 1, 0, 0]))
 
     def next_minor(self):
-        return Version(
-            '.'.join(str(x) for x in [self.major, self.minor + 1, 0]))
+        if self.prerelease and self.patch is 0:
+            return Version('.'.join(str(x) for x in [self.major, self.minor, self.patch]))
+        else:
+            return Version(
+                '.'.join(str(x) for x in [self.major, self.minor + 1, 0]))
 
     def next_patch(self):
-        return Version(
-            '.'.join(str(x) for x in [self.major, self.minor, self.patch + 1]))
+        if self.prerelease:
+            return Version('.'.join(str(x) for x in [self.major, self.minor, self.patch]))
+        else:
+            return Version(
+                '.'.join(str(x) for x in [self.major, self.minor, self.patch + 1]))
 
     @classmethod
     def coerce(cls, version_string, partial=False):
@@ -124,8 +135,10 @@ class Version(object):
 
         match = base_re.match(version_string)
         if not match:
-            raise ValueError("Version string lacks a numerical component: %r"
-                    % version_string)
+            raise ValueError(
+                "Version string lacks a numerical component: %r"
+                % version_string
+            )
 
         version = version_string[:match.end()]
         if not partial:
@@ -233,8 +246,11 @@ class Version(object):
     def _validate_identifiers(cls, identifiers, allow_leading_zeroes=False):
         for item in identifiers:
             if not item:
-                raise ValueError("Invalid empty identifier %r in %r"
-                        % (item, '.'.join(identifiers)))
+                raise ValueError(
+                    "Invalid empty identifier %r in %r"
+                    % (item, '.'.join(identifiers))
+                )
+
             if item[0] == '0' and item.isdigit() and item != '0' and not allow_leading_zeroes:
                 raise ValueError("Invalid leading zero in identifier %r" % item)
 
@@ -327,7 +343,6 @@ class Version(object):
             ]
 
     def __compare(self, other):
-        field_pairs = zip(self, other)
         comparison_functions = self._comparison_functions(partial=self.partial or other.partial)
         comparisons = zip(comparison_functions, self, other)
 
@@ -389,11 +404,22 @@ class SpecItem(object):
     KIND_LT = '<'
     KIND_LTE = '<='
     KIND_EQUAL = '=='
+    KIND_SHORTEQ = '='
+    KIND_EMPTY = ''
     KIND_GTE = '>='
     KIND_GT = '>'
     KIND_NEQ = '!='
+    KIND_CARET = '^'
+    KIND_TILDE = '~'
+    KIND_COMPATIBLE = '~='
 
-    re_spec = re.compile(r'^(<|<=|==|>=|>|!=)(\d.*)$')
+    # Map a kind alias to its full version
+    KIND_ALIASES = {
+        KIND_SHORTEQ: KIND_EQUAL,
+        KIND_EMPTY: KIND_EQUAL,
+    }
+
+    re_spec = re.compile(r'^(<|<=||=|==|>=|>|!=|\^|~|~=)(\d.*)$')
 
     def __init__(self, requirement_string):
         kind, spec = self.parse(requirement_string)
@@ -414,11 +440,15 @@ class SpecItem(object):
             raise ValueError("Invalid requirement specification: %r" % requirement_string)
 
         kind, version = match.groups()
+        if kind in cls.KIND_ALIASES:
+            kind = cls.KIND_ALIASES[kind]
+
         spec = Version(version, partial=True)
         if spec.build is not None and kind not in (cls.KIND_EQUAL, cls.KIND_NEQ):
             raise ValueError(
-                    "Invalid requirement specification %r: build numbers have no ordering."
-                    % requirement_string)
+                "Invalid requirement specification %r: build numbers have no ordering."
+                % requirement_string
+            )
         return (kind, spec)
 
     def match(self, version):
@@ -436,6 +466,22 @@ class SpecItem(object):
             return version > self.spec
         elif self.kind == self.KIND_NEQ:
             return version != self.spec
+        elif self.kind == self.KIND_CARET:
+            if self.spec.major != 0:
+                upper = self.spec.next_major()
+            elif self.spec.minor != 0:
+                upper = self.spec.next_minor()
+            else:
+                upper = self.spec.next_patch()
+            return self.spec <= version < upper
+        elif self.kind == self.KIND_TILDE:
+            return self.spec <= version < self.spec.next_minor()
+        elif self.kind == self.KIND_COMPATIBLE:
+            if self.spec.patch is not None:
+                upper = self.spec.next_minor()
+            else:
+                upper = self.spec.next_major()
+            return self.spec <= version < upper
         else:  # pragma: no cover
             raise ValueError('Unexpected match kind: %r' % self.kind)
 

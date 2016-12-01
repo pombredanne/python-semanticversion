@@ -1,8 +1,26 @@
 ChangeLog
 =========
 
-2.5.0 (master)
---------------
+
+2.6.0 (2016-09-25)
+------------------
+
+*New:*
+
+    * `#43 <https://github.com/rbarrois/python-semanticversion/issues/43>`_:
+      Add support for Django up to 1.10.
+
+*Removed:*
+
+    * Remove support for Django<1.7
+
+*Bugfix:*
+
+    * `#35 <https://github.com/rbarrois/python-semanticversion/issues/35>`_:
+      Properly handle `^0.X.Y` in a NPM-compatible way
+
+2.5.0 (2016-02-12)
+------------------
 
 *Bugfix:*
 
@@ -30,6 +48,9 @@ ChangeLog
     * :func:`semantic_version.compare` returns ``NotImplemented`` when its
       parameters differ only by build metadata
     * ``Spec('<=1.3.0')`` now matches ``Version('1.3.0+abde24fe883')``
+
+    * `#24 <https://github.com/rbarrois/python-semanticversion/issues/24>`_: Fix handling of bumping pre-release versions, thanks to @minchinweb.
+    * `#30 <https://github.com/rbarrois/python-semanticversion/issues/30>`_: Add support for NPM-style ``^1.2.3`` and ``~2.3.4`` specs, thanks to @skwashd
 
 2.4.2 (2015-07-02)
 ------------------
